@@ -172,19 +172,19 @@ class RobotConfig:
   SPEED_KNEE     = 6.0
 
   def __init__(self, params=None):
-    self.params = params if params is not None else np.ones(9)
-    self.leg1_top_width  = params[0]  * self.LEG_TOP_WIDTH 
-    self.leg1_top_height = params[1]  * self.LEG_TOP_HEIGHT
-    self.leg1_bot_width  = params[2]  * self.LEG_BOT_WIDTH 
-    self.leg1_bot_height = params[3]  * self.LEG_BOT_HEIGHT
-    self.leg2_top_width  = params[4]  * self.LEG_TOP_WIDTH 
-    self.leg2_top_height = params[5]  * self.LEG_TOP_HEIGHT
-    self.leg2_bot_width  = params[6]  * self.LEG_BOT_WIDTH 
-    self.leg2_bot_height = params[7]  * self.LEG_BOT_HEIGHT
-    self.lidar_range     = params[8]  * self.LIDAR_RANGE
-    self.motors_torque   = params[9]  * self.MOTORS_TORQUE
-    self.speed_hip       = params[10] * self.SPEED_HIP
-    self.speed_knee      = params[11] * self.SPEED_KNEE
+    self.params = params if params is not None else np.ones(12)
+    self.leg1_top_width  = self.params[0]  * self.LEG_TOP_WIDTH 
+    self.leg1_top_height = self.params[1]  * self.LEG_TOP_HEIGHT
+    self.leg1_bot_width  = self.params[2]  * self.LEG_BOT_WIDTH 
+    self.leg1_bot_height = self.params[3]  * self.LEG_BOT_HEIGHT
+    self.leg2_top_width  = self.params[4]  * self.LEG_TOP_WIDTH 
+    self.leg2_top_height = self.params[5]  * self.LEG_TOP_HEIGHT
+    self.leg2_bot_width  = self.params[6]  * self.LEG_BOT_WIDTH 
+    self.leg2_bot_height = self.params[7]  * self.LEG_BOT_HEIGHT
+    self.lidar_range     = self.params[8]  * self.LIDAR_RANGE
+    self.motors_torque   = self.params[9]  * self.MOTORS_TORQUE
+    self.speed_hip       = self.params[10] * self.SPEED_HIP
+    self.speed_knee      = self.params[11] * self.SPEED_KNEE
 
   def sample(self):
     raise NotImplementedError
