@@ -25,7 +25,7 @@ class Hull:
       self, 
       world
   ):
-    self.world = world
+    self.sim = world
     self.body = None
     self.fixture = fixtureDef(
       shape=polygonShape(
@@ -46,7 +46,7 @@ class Hull:
     return [self.body]
 
   def reset(self, init_x, init_y, noise):
-    self.body = self.world.world.CreateDynamicBody(
+    self.body = self.sim.world.CreateDynamicBody(
       position=(init_x, init_y), 
       fixtures=self.fixture
     )
@@ -94,7 +94,7 @@ class Leg:
       motors_torque,
       right=False
   ):
-    self.world = world
+    self.sim = world
     self.right = right
     self.motors_torque = motors_torque
     self.leg_down = -8 / world.scale
@@ -140,20 +140,20 @@ class Leg:
     return [self.top_body, self.bot_body]
 
   def reset(self, init_x, init_y):
-    self.top_body = self.world.world.CreateDynamicBody(
+    self.top_body = self.sim.world.CreateDynamicBody(
       position=(init_x, init_y - self.top_shift),
       angle=-0.05 if self.right else 0.05,
       fixtures=self.top_fixture
     )
 
-    self.bot_body = self.world.world.CreateDynamicBody(
+    self.bot_body = self.sim.world.CreateDynamicBody(
       position=(init_x, init_y - self.bot_shift),
       angle=-0.05 if self.right else 0.05,
       fixtures=self.bot_fixture
     )
     self.bot_body.ground_contact = False
 
-    self.joint = self.world.world.CreateJoint(
+    self.joint = self.sim.world.CreateJoint(
       revoluteJointDef(
         bodyA=self.top_body,
         bodyB=self.bot_body,
@@ -203,18 +203,18 @@ class RobotConfig:
     raise NotImplementedError
 
 class BipedalRobot:
-  def __init__(self, world, config):
-    self.world = world
+  def __init__(self, sim, config):
+    self.sim = sim
     self.config = config
 
-    self.hull = Hull(world)
+    self.hull = Hull(sim)
     self.lidar = Lidar(config.lidar_range)
 
     self.joint1 = None
     self.joint2 = None
 
     self.leg1 = Leg(
-      world, 
+      sim, 
       config.leg1_top_width,
       config.leg1_top_height,
       config.leg1_bot_width,
@@ -223,7 +223,7 @@ class BipedalRobot:
       right=False
     )
     self.leg2 = Leg(
-      world, 
+      sim, 
       config.leg2_top_width,
       config.leg2_top_height,
       config.leg2_bot_width,
@@ -245,14 +245,14 @@ class BipedalRobot:
   def destroy(self):
     for part in self.parts:
       if part is not None:
-        self.world.world.DestroyBody(part)
+        self.sim.world.DestroyBody(part)
 
   def reset(self, init_x, init_y, noise):
     self.hull.reset(init_x, init_y, noise)
     self.leg1.reset(init_x, init_y)
     self.leg2.reset(init_x, init_y)
     self.lidar.reset()
-    self.joint1 = self.world.world.CreateJoint(
+    self.joint1 = self.sim.world.CreateJoint(
       revoluteJointDef(
         bodyA=self.hull.body,
         bodyB=self.leg1.top_body,
@@ -266,7 +266,7 @@ class BipedalRobot:
         upperAngle=1.1
       )
     )
-    self.joint2 = self.world.world.CreateJoint(
+    self.joint2 = self.sim.world.CreateJoint(
         revoluteJointDef(
         bodyA=self.hull.body,
         bodyB=self.leg2.top_body,
@@ -294,5 +294,5 @@ class BipedalRobot:
     return self.joints
 
   def scan(self, pos):
-    self.lidar.scan(pos, self.world)
+    self.lidar.scan(pos, self.sim)
     return self.lidar.callbacks
