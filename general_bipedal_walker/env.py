@@ -12,7 +12,7 @@ from Box2D.b2 import (
   revoluteJointDef, 
   contactListener
 )
-from world import World
+from simulation import Simulation
 from robot import RobotConfig, BipedalRobot
 
 class ContactDetector(contactListener):
@@ -39,8 +39,8 @@ class GeneralBipedalWalker(gym.Env):
     self.viewer = None
     
     self.seed()
-    self.world = World(self.np_random, hardcore)
-    self.robot = BipedalRobot(self.world, RobotConfig())
+    self.sim = Simulation(self.np_random, hardcore)
+    self.robot = BipedalRobot(self.sim, RobotConfig())
 
     os_lim = np.array([np.inf for _ in range(24)])
     as_lim = np.array([1 for _ in range(4)])
@@ -51,32 +51,32 @@ class GeneralBipedalWalker(gym.Env):
 
   def augment(self, params):
     self.robot.destroy()
-    self.robot = BipedalRobot(self.world, RobotConfig(params))
+    self.robot = BipedalRobot(self.sim, RobotConfig(params))
 
   def seed(self, seed=None):
     self.np_random, seed = seeding.np_random(seed)
     return [seed]
 
-  def destroy(self):
+  def _destroy(self):
     self.robot.destroy()
-    self.world.destroy()
+    self.sim.destroy()
 
   def reset(self):
-    self.destroy()
+    self._destroy()
 
-    self.world.contactListener_bug_workaround = ContactDetector(self)
-    self.world.contactListener = self.world.contactListener_bug_workaround
+    self.sim.world.contactListener_bug_workaround = ContactDetector(self)
+    self.sim.world.contactListener = self.sim.world.contactListener_bug_workaround
 
-    init_x = self.world.terrain_step * self.world.terrain_startpad / 2
-    init_y = self.world.terrain_height + np.maximum(
-      self.robot.config.leg1_top_height + self.robot.config.leg1_bot_height, 
-      self.robot.config.leg2_top_height + self.robot.config.leg2_bot_height
+    init_x = self.sim.terrain_step * self.sim.terrain_startpad / 2
+    init_y = self.sim.terrain_height + np.maximum(
+      self.robot.leg1.top_height + self.robot.leg1.bot_height, 
+      self.robot.leg2.top_height + self.robot.leg2.bot_height
     )
     init_noise = (self.np_random.uniform(-5, 5), 0)
 
-    self.world.reset()
+    self.sim.reset()
     self.robot.reset(init_x, init_y, init_noise)
-    self.assets = self.world.terrain + self.robot.parts
+    self.assets = self.sim.terrain + self.robot.parts
     
     self.game_over = False
     self.prev_shaping = None
@@ -90,7 +90,7 @@ class GeneralBipedalWalker(gym.Env):
     if self.game_over or self.robot.hull.body.position[0] < 0:
       return -100
     reward = 0
-    shaping = 130 * self.robot.hull.body.position.x / self.world.scale
+    shaping = 130 * self.robot.hull.body.position.x / self.sim.scale
     shaping -= 5.0 * abs(state[0])
     if self.prev_shaping is not None:
       reward = shaping - self.prev_shaping
@@ -108,30 +108,25 @@ class GeneralBipedalWalker(gym.Env):
     if self.game_over or self.robot.hull.body.position[0] < 0:
       done = True
     if (self.robot.hull.body.position[0] > (
-        (self.world.terrain_length - self.world.terrain_grass) * 
-        self.world.terrain_step)):
+        (self.sim.terrain_length - self.sim.terrain_grass) * 
+        self.sim.terrain_step)):
       done = True
-    if self.timer >= self.world.limit:
+    if self.timer >= self.sim.limit:
       done = True
     return done
 
   def step(self, action):
     joints = self.robot.step(action)
-    self.world.step()
-    lidars = self.robot.scan()
+    self.sim.step()
+    pos = self.robot.hull.body.position
+    vel = self.robot.hull.body.linearVelocity
 
     # Update the environment state.
     joint_state = [
       self.robot.hull.body.angle,
-      2.0 * self.robot.hull.body.angularVelocity / self.world.fps,
-      (
-        0.3 * self.robot.hull.body.linearVelocity.x * 
-        (self.world.viewport_width / self.world.scale) / self.world.fps
-      ),
-      (
-        0.3 * self.robot.hull.body.linearVelocity.y * 
-        (self.world.viewport_height / self.world.scale) / self.world.fps
-      ),
+      2.0 * self.robot.hull.body.angularVelocity / self.sim.fps,
+      0.3 * vel.x * self.sim.scaled_width / self.sim.fps,
+      0.3 * vel.y * self.sim.scaled_height / self.sim.fps,
       joints[0].angle,
       joints[0].speed / self.robot.config.speed_hip,
       joints[1].angle + 1.0,
@@ -143,13 +138,9 @@ class GeneralBipedalWalker(gym.Env):
       joints[3].speed / self.robot.config.speed_knee,
       1.0 if self.robot.leg2.bot_body.ground_contact else 0.0
     ]
-    lidar_state = [lidar.fraction for lidar in lidars]
+    lidar_state = [lidar.fraction for lidar in self.robot.scan(pos)]
     state = np.array(joint_state + lidar_state, dtype=np.float32)
-
-    self.scroll = (
-      self.robot.hull.body.position[0] - 
-      self.world.viewport_width / self.world.scale / 5
-    )
+    self.scroll = pos[0] - self.sim.scaled_width / 5
 
     # Compute reward.
     reward = self.reward(state, action)
@@ -170,40 +161,37 @@ class GeneralBipedalWalker(gym.Env):
     from gym.envs.classic_control import rendering
     if self.viewer is None:
       self.viewer = rendering.Viewer(
-        self.world.viewport_width, 
-        self.world.viewport_height
+        self.sim.viewport_width, 
+        self.sim.viewport_height
       )
-
-    scaled_width = self.world.viewport_width / self.world.scale
-    scaled_height = self.world.viewport_height / self.world.scale
 
     self.viewer.set_bounds(
       self.scroll, 
-      scaled_width + self.scroll, 
+      self.sim.scaled_width + self.scroll, 
       0, 
-      scaled_height
+      self.sim.scaled_height
     )
 
     self.viewer.draw_polygon([
-      (               self.scroll,             0), 
-      (self.scroll + scaled_width,             0),
-      (self.scroll + scaled_width, scaled_height), 
-      (               self.scroll, scaled_height),
+      (                        self.scroll,                      0), 
+      (self.scroll + self.sim.scaled_width,                      0),
+      (self.scroll + self.sim.scaled_width, self.sim.scaled_height), 
+      (                        self.scroll, self.sim.scaled_height)
     ], color=(0.9, 0.9, 1.0))
 
-    for poly, x1, x2 in self.world.cloud_poly:
+    for poly, x1, x2 in self.sim.cloud_poly:
       if x2 < self.scroll / 2:
         continue
-      if x1 > self.scroll / 2 + scaled_width:
+      if x1 > self.scroll / 2 + self.sim.scaled_width:
         continue
       self.viewer.draw_polygon([
         (p[0] + self.scroll / 2, p[1]) 
         for p in poly
       ], color=(1.0, 1.0, 1.0))
-    for poly, color in self.world.terrain_poly:
+    for poly, color in self.sim.terrain_poly:
       if poly[1][0] < self.scroll:
         continue
-      if poly[0][0] > self.scroll + scaled_width:
+      if poly[0][0] > self.scroll + self.sim.scaled_width:
         continue
       self.viewer.draw_polygon(poly, color=color)
 
@@ -213,7 +201,8 @@ class GeneralBipedalWalker(gym.Env):
       if i < len(self.robot.lidar.callbacks):
         l = self.robot.lidar.callbacks[i]
       else:
-        l = self.robot.lidar.callbacks[-i-1]
+        idx = len(self.robot.lidar.callbacks) - i - 1
+        l = self.robot.lidar.callbacks[idx]
       self.viewer.draw_polyline([l.p1, l.p2], color=(1, 0, 0), linewidth=1)
 
     for obj in self.assets:
@@ -229,26 +218,25 @@ class GeneralBipedalWalker(gym.Env):
           path.append(path[0])
           self.viewer.draw_polyline(path, color=obj.color2, linewidth=2)
 
-    flagy1 = self.world.terrain_height
-    flagy2 = flagy1 + 50 / self.world.scale
-    x = self.world.terrain_step * 3
+    flagy1 = self.sim.terrain_height
+    flagy2 = flagy1 + 50 / self.sim.scale
+    x = self.sim.terrain_step * 3
     self.viewer.draw_polyline([
       (x, flagy1), 
       (x, flagy2)
     ], color=(0, 0, 0), linewidth=2)
     f = [
-      (                    x,                     flagy2), 
-      (                    x, flagy2-10/self.world.scale), 
-      (x+25/self.world.scale,  flagy2-5/self.world.scale)
+      (                      x,                     flagy2), 
+      (                      x, flagy2-10 / self.sim.scale), 
+      (x + 25 / self.sim.scale,  flagy2-5 / self.sim.scale)
     ]
     self.viewer.draw_polygon(f, color=(0.9, 0.2, 0))
     self.viewer.draw_polyline(f + [f[0]], color=(0, 0, 0), linewidth=2)
     return self.viewer.render(return_rgb_array=mode=='rgb_array')
 
-
 def demo():
   # Heurisic: suboptimal, have no notion of balance.
-  env = GeneralBipedalWalker()
+  env = GeneralBipedalWalker(hardcore=False)
   # env.sample()
   env.reset()
   steps = 0

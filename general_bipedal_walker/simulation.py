@@ -10,7 +10,7 @@ from Box2D.b2 import (
   contactListener
 )
 
-class World:
+class Simulation:
   _FPS                  = 50
   _SCALE                = 30.0
   _VIEWPORT_WIDTH       = 600
@@ -28,6 +28,7 @@ class World:
     self.np_random = np_random
     self.hardcore = hardcore
     self.world = Box2D.b2World()
+    self.terrain = None
     self.fd_polygon = fixtureDef(
       shape=polygonShape(
         vertices=[(0, 0), (1, 0), (1, -1), (0, -1)]
@@ -57,6 +58,14 @@ class World:
   @property
   def viewport_height(self):
     return self._VIEWPORT_HEIGHT
+
+  @property
+  def scaled_width(self):
+    return self.viewport_width / self.scale
+
+  @property
+  def scaled_height(self):
+    return self.viewport_height / self.scale
 
   @property
   def terrain_step(self):

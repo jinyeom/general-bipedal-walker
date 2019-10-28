@@ -30,7 +30,7 @@ class Hull:
     self.fixture = fixtureDef(
       shape=polygonShape(
         vertices=[
-          (x/world.scale, y/world.scale) 
+          (x / world.scale, y / world.scale) 
           for x, y in Hull._POLY
         ]
       ),
@@ -46,7 +46,7 @@ class Hull:
     return [self.body]
 
   def reset(self, init_x, init_y, noise):
-    self.body = self.world.CreateDynamicBody(
+    self.body = self.world.world.CreateDynamicBody(
       position=(init_x, init_y), 
       fixtures=self.fixture
     )
@@ -65,6 +65,9 @@ class Lidar:
 
   def __init__(self, scan_range):
     self.scan_range = scan_range
+    self.callbacks = None
+
+  def reset(self):
     self.callbacks = [Lidar.Callback() for _ in range(10)]
 
   def scan(self, pos, world):
@@ -75,7 +78,7 @@ class Lidar:
         pos[0] + math.sin(1.5*i/10.0) * self.scan_range,
         pos[1] - math.cos(1.5*i/10.0) * self.scan_range
       )
-      world.RayCast(lidar, lidar.p1, lidar.p2)
+      world.world.RayCast(lidar, lidar.p1, lidar.p2)
 
 class Leg:
   _COLOR_1 = np.array([0.6, 0.3, 0.5])
@@ -84,21 +87,28 @@ class Leg:
   def __init__(
       self, 
       world,
-      config,
+      top_width,
+      top_height,
+      bot_width,
+      bot_height,
+      motors_torque,
       right=False
   ):
     self.world = world
     self.right = right
-    self.motors_torque = config.motors_torque
+    self.motors_torque = motors_torque
     self.leg_down = -8 / world.scale
 
-    self.top_width = config.top_width / world.scale
-    self.top_height = config.top_height / world.scale
-    self.top_shift = config.top_height/2 + self.leg_down
+    self.top_width = top_width / world.scale
+    self.top_height = top_height / world.scale
+    self.top_shift = self.top_height / 2 + self.leg_down
     self.top_body = None
     self.top_fixture = fixtureDef(
       shape=polygonShape(
-        box=(config.top_width/2, config.top_height/2)
+        box=(
+          self.top_width / 2, 
+          self.top_height / 2
+        )
       ),
       density=1.0,
       restitution=0.0,
@@ -108,13 +118,16 @@ class Leg:
 
     self.joint = None
 
-    self.bot_width = config.bot_width / world.scale
-    self.bot_height = config.bot_height / world.scale
-    self.bot_shift = config.top_height + config.bot_height/2 - self.leg_down
+    self.bot_width = bot_width / world.scale
+    self.bot_height = bot_height / world.scale
+    self.bot_shift = self.top_height + self.bot_height / 2 + self.leg_down
     self.bot_body = None
     self.bot_fixture = fixtureDef(
       shape=polygonShape(
-        box=(config.bot_width/2, config.bot_height/2)
+        box=(
+          self.bot_width / 2, 
+          self.bot_height / 2
+        )
       ),
       density=1.0,
       restitution=0.0,
@@ -127,20 +140,20 @@ class Leg:
     return [self.top_body, self.bot_body]
 
   def reset(self, init_x, init_y):
-    self.top_body = self.world.CreateDynamicBody(
+    self.top_body = self.world.world.CreateDynamicBody(
       position=(init_x, init_y - self.top_shift),
       angle=-0.05 if self.right else 0.05,
       fixtures=self.top_fixture
     )
 
-    self.bot_body = self.world.CreateDynamicBody(
+    self.bot_body = self.world.world.CreateDynamicBody(
       position=(init_x, init_y - self.bot_shift),
       angle=-0.05 if self.right else 0.05,
       fixtures=self.bot_fixture
     )
     self.bot_body.ground_contact = False
 
-    self.joint = self.world.CreateJoin(
+    self.joint = self.world.world.CreateJoint(
       revoluteJointDef(
         bodyA=self.top_body,
         bodyB=self.bot_body,
@@ -200,8 +213,24 @@ class BipedalRobot:
     self.joint1 = None
     self.joint2 = None
 
-    self.leg1 = Leg(world, config, right=False)
-    self.leg2 = Leg(world, config, right=True)
+    self.leg1 = Leg(
+      world, 
+      config.leg1_top_width,
+      config.leg1_top_height,
+      config.leg1_bot_width,
+      config.leg1_bot_height,
+      config.motors_torque,
+      right=False
+    )
+    self.leg2 = Leg(
+      world, 
+      config.leg2_top_width,
+      config.leg2_top_height,
+      config.leg2_bot_width,
+      config.leg2_bot_height,
+      config.motors_torque,
+      right=True
+    )
 
   @property
   def parts(self):
@@ -215,36 +244,41 @@ class BipedalRobot:
 
   def destroy(self):
     for part in self.parts:
-      self.world.DestroyBody(part)
+      if part is not None:
+        self.world.world.DestroyBody(part)
 
   def reset(self, init_x, init_y, noise):
     self.hull.reset(init_x, init_y, noise)
     self.leg1.reset(init_x, init_y)
     self.leg2.reset(init_x, init_y)
-
-    self.joint1 = revoluteJointDef(
-      bodyA=self.hull.body,
-      bodyB=self.leg1.top_body,
-      localAnchorA=(0, self.leg1.leg_down),
-      localAnchorB=(0, self.leg1.top_height / 2),
-      enableMotor=True,
-      enableLimit=True,
-      maxMotorTorque=self.config.motors_torque,
-      motorSpeed=-1.0,
-      lowerAngle=-0.8,
-      upperAngle=1.1
+    self.lidar.reset()
+    self.joint1 = self.world.world.CreateJoint(
+      revoluteJointDef(
+        bodyA=self.hull.body,
+        bodyB=self.leg1.top_body,
+        localAnchorA=(0, self.leg1.leg_down),
+        localAnchorB=(0, self.leg1.top_height / 2),
+        enableMotor=True,
+        enableLimit=True,
+        maxMotorTorque=self.config.motors_torque,
+        motorSpeed=-1.0,
+        lowerAngle=-0.8,
+        upperAngle=1.1
+      )
     )
-    self.joint2 = revoluteJointDef(
-      bodyA=self.hull.body,
-      bodyB=self.leg2.top_body,
-      localAnchorA=(0, self.leg2.leg_down),
-      localAnchorB=(0, self.leg2.top_height / 2),
-      enableMotor=True,
-      enableLimit=True,
-      maxMotorTorque=self.config.motors_torque,
-      motorSpeed=1.0,
-      lowerAngle=-0.8,
-      upperAngle=1.1
+    self.joint2 = self.world.world.CreateJoint(
+        revoluteJointDef(
+        bodyA=self.hull.body,
+        bodyB=self.leg2.top_body,
+        localAnchorA=(0, self.leg2.leg_down),
+        localAnchorB=(0, self.leg2.top_height / 2),
+        enableMotor=True,
+        enableLimit=True,
+        maxMotorTorque=self.config.motors_torque,
+        motorSpeed=1.0,
+        lowerAngle=-0.8,
+        upperAngle=1.1
+      )
     )
 
   def step(self, action):
@@ -259,7 +293,6 @@ class BipedalRobot:
     joint3.maxMotorTorque = self.config.motors_torque * np.clip(np.abs(action[3]), 0, 1)
     return self.joints
 
-  def scan(self):
-    pos = self.hull.body.position
+  def scan(self, pos):
     self.lidar.scan(pos, self.world)
     return self.lidar.callbacks
