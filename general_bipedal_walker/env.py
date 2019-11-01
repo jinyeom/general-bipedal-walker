@@ -273,7 +273,7 @@ class GeneralBipedalWalker(gym.Env):
 
 def demo():
   # Heurisic: suboptimal, have no notion of balance.
-  env = GeneralBipedalWalker(hardcore=True)
+  env = GeneralBipedalWalker(hardcore=False)
   # env.sample()
   env.reset()
   steps = 0

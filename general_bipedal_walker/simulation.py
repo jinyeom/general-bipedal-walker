@@ -142,15 +142,15 @@ class Simulation:
         y += velocity
 
       elif state == PIT and oneshot:
-        color2 = Color.rand()
-        color1 = Color.lighter(color2)
+        bound_color = Color.rand()
+        fill_color = Color.lighter(bound_color)
 
         counter = self.np_random.randint(3, 5)
         poly = self._pit_poly(x, y, counter)
         self.fd_polygon.shape.vertices = poly
         t = self.world.CreateStaticBody(fixtures=self.fd_polygon)
-        t.color1 = color1
-        t.color2 = color2
+        t.color1 = fill_color
+        t.color2 = bound_color
         self.terrain.append(t)
 
         self.fd_polygon.shape.vertices = [
@@ -158,8 +158,8 @@ class Simulation:
           for x, y in poly
         ]
         t = self.world.CreateStaticBody(fixtures=self.fd_polygon)
-        t.color1 = color1
-        t.color2 = color2
+        t.color1 = fill_color
+        t.color2 = bound_color
         self.terrain.append(t)
 
         counter += 2
@@ -171,20 +171,20 @@ class Simulation:
           y -= 4 * self._TERRAIN_STEP
 
       elif state == STUMP and oneshot:
-        color2 = Color.rand()
-        color1 = Color.lighter(color2)
+        bound_color = Color.rand()
+        fill_color = Color.lighter(bound_color)
 
         counter = self.np_random.randint(1, 3)
         poly = self._stump_poly(x, y, counter)
         self.fd_polygon.shape.vertices = poly
         t = self.world.CreateStaticBody(fixtures=self.fd_polygon)
-        t.color1 = color1
-        t.color2 = color2
+        t.color1 = fill_color
+        t.color2 = bound_color
         self.terrain.append(t)
 
       elif state == STAIRS and oneshot:
-        color2 = Color.rand()
-        color1 = Color.lighter(color2)
+        bound_color = Color.rand()
+        fill_color = Color.lighter(bound_color)
 
         stair_steps = self.np_random.randint(3, 5)
         stair_width = self.np_random.randint(4, 5)
@@ -194,8 +194,8 @@ class Simulation:
           poly = self._stair_poly(s, x, y, stair_width, stair_height)
           self.fd_polygon.shape.vertices = poly
           t = self.world.CreateStaticBody(fixtures=self.fd_polygon)
-          t.color1 = color1
-          t.color2 = color2
+          t.color1 = fill_color
+          t.color2 = bound_color
           self.terrain.append(t)
         counter = stair_steps * stair_width
 

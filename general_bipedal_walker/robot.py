@@ -19,8 +19,8 @@ class Hull:
     ( 34, -8), 
     (-30, -8)
   ]
-  _COLOR_1 = Color.rand()
-  _COLOR_2 = Color.darker(_COLOR_1)
+  _BOUND_COLOR = Color.rand()
+  _FILL_COLOR = Color.lighter(_BOUND_COLOR)
 
   def __init__(
       self, 
@@ -51,8 +51,8 @@ class Hull:
       position=(init_x, init_y), 
       fixtures=self.fixture
     )
-    self.body.color1 = Hull._COLOR_1
-    self.body.color2 = Hull._COLOR_2
+    self.body.color1 = Hull._FILL_COLOR
+    self.body.color2 = Hull._BOUND_COLOR
     self.body.ApplyForceToCenter(noise, True)
 
 class Lidar:
@@ -82,8 +82,8 @@ class Lidar:
       sim.world.RayCast(lidar, lidar.p1, lidar.p2)
 
 class Leg:
-  _COLOR_1 = Color.rand()
-  _COLOR_2 = Color.darker(_COLOR_1)
+  _BOUND_COLOR = Color.rand()
+  _FILL_COLOR = Color.lighter(_BOUND_COLOR)
 
   def __init__(
       self, 
@@ -169,11 +169,11 @@ class Leg:
       )
     )
 
-    color1 = Color.lighter(Leg._COLOR_1)
-    color2 = Color.lighter(Leg._COLOR_2)
+    color1 = Color.lighter(Leg._FILL_COLOR)
+    color2 = Color.lighter(Leg._BOUND_COLOR)
     if self.right:
-      color1 = Color.darker(Leg._COLOR_1)
-      color2 = Color.darker(Leg._COLOR_2)
+      color1 = Color.darker(Leg._FILL_COLOR)
+      color2 = Color.darker(Leg._BOUND_COLOR)
     self.top_body.color1 = tuple(color1)
     self.top_body.color2 = tuple(color2)
     self.bot_body.color1 = tuple(color1)

@@ -27,14 +27,12 @@ class Color:
     return np.clip(color + scale * 0.1, 0, 1)
 
   @staticmethod
-  def rand(rng=None, include_bw=False):
+  def rand(rng=None, include_grays=False):
     colors = [
       'DARK_BLUE',
       'DARK_PURPLE',
       'DARK_GREEN',
       'BROWN',
-      'DARK_GRAY',
-      'LIGHT_GRAY',
       'RED',
       'ORANGE',
       'YELLOW',
@@ -44,8 +42,13 @@ class Color:
       'PINK',
       'PEACH',
     ]
-    if include_bw:
-      colors += ['BLACK', 'WHITE']
+    if include_grays:
+      colors += [
+        'BLACK',
+        'DARK_GRAY',
+        'LIGHT_GRAY', 
+        'WHITE',
+      ]
     if rng:
       return Color.__dict__[rng.choice(colors)]
     return Color.__dict__[np.random.choice(colors)]
