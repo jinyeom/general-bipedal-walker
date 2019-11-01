@@ -9,6 +9,7 @@ from Box2D.b2 import (
   contactListener,
   rayCastCallback
 )
+from color import Color
 
 class Hull:
   _POLY = [
@@ -18,8 +19,8 @@ class Hull:
     ( 34, -8), 
     (-30, -8)
   ]
-  _COLOR_1 = (0.5, 0.4, 0.9)
-  _COLOR_2 = (0.3, 0.3, 0.5)
+  _COLOR_1 = Color.rand()
+  _COLOR_2 = Color.darker(_COLOR_1)
 
   def __init__(
       self, 
@@ -70,19 +71,19 @@ class Lidar:
   def reset(self):
     self.callbacks = [Lidar.Callback() for _ in range(10)]
 
-  def scan(self, pos, world):
+  def scan(self, pos, sim):
     for i, lidar in enumerate(self.callbacks):
       self.callbacks[i].fraction = 1.0
       self.callbacks[i].p1 = pos
       self.callbacks[i].p2 = (
-        pos[0] + math.sin(1.5*i/10.0) * self.scan_range,
-        pos[1] - math.cos(1.5*i/10.0) * self.scan_range
+        pos[0] + math.sin(1.5 * i / 10.0) * self.scan_range,
+        pos[1] - math.cos(1.5 * i / 10.0) * self.scan_range
       )
-      world.world.RayCast(lidar, lidar.p1, lidar.p2)
+      sim.world.RayCast(lidar, lidar.p1, lidar.p2)
 
 class Leg:
-  _COLOR_1 = np.array([0.6, 0.3, 0.5])
-  _COLOR_2 = np.array([0.4, 0.2, 0.3])
+  _COLOR_1 = Color.rand()
+  _COLOR_2 = Color.darker(_COLOR_1)
 
   def __init__(
       self, 
@@ -168,11 +169,15 @@ class Leg:
       )
     )
 
-    shade = -0.1 if self.right else 0.1
-    self.top_body.color1 = tuple(Leg._COLOR_1 + shade)
-    self.top_body.color2 = tuple(Leg._COLOR_2 + shade)
-    self.bot_body.color1 = tuple(Leg._COLOR_1 + shade)
-    self.bot_body.color2 = tuple(Leg._COLOR_2 + shade)
+    color1 = Color.lighter(Leg._COLOR_1)
+    color2 = Color.lighter(Leg._COLOR_2)
+    if self.right:
+      color1 = Color.darker(Leg._COLOR_1)
+      color2 = Color.darker(Leg._COLOR_2)
+    self.top_body.color1 = tuple(color1)
+    self.top_body.color2 = tuple(color2)
+    self.bot_body.color1 = tuple(color1)
+    self.bot_body.color2 = tuple(color2)
 
 class RobotConfig:
   LEG_TOP_WIDTH  = 8.0
