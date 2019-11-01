@@ -19,8 +19,8 @@ class Hull:
     ( 34, -8), 
     (-30, -8)
   ]
-  _BOUND_COLOR = Color.rand()
-  _FILL_COLOR = Color.lighter(_BOUND_COLOR)
+  _BOUND_COLOR = Color.BLACK
+  _FILL_COLOR = Color.rand()
 
   def __init__(
       self, 
@@ -82,8 +82,8 @@ class Lidar:
       sim.world.RayCast(lidar, lidar.p1, lidar.p2)
 
 class Leg:
-  _BOUND_COLOR = Color.rand()
-  _FILL_COLOR = Color.lighter(_BOUND_COLOR)
+  _BOUND_COLOR = Color.BLACK
+  _FILL_COLOR = Color.rand()
 
   def __init__(
       self, 

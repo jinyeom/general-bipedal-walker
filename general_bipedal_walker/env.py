@@ -194,7 +194,7 @@ class GeneralBipedalWalker(gym.Env):
         idx = len(self.robot.lidar.callbacks) - i - 1
         l = self.robot.lidar.callbacks[idx]
       self.viewer.draw_polyline(
-        [l.p1, l.p2], 
+        [l.p1, l.p2],
         color=Color.RED, 
         linewidth=1
       )
@@ -263,7 +263,7 @@ class GeneralBipedalWalker(gym.Env):
     )
 
     self.render_sky()
-    self.render_cloud()
+    # self.render_cloud()
     self.render_terrain()
     self.render_lidar()
     self.render_assets()
@@ -273,7 +273,7 @@ class GeneralBipedalWalker(gym.Env):
 
 def demo():
   # Heurisic: suboptimal, have no notion of balance.
-  env = GeneralBipedalWalker(hardcore=False)
+  env = GeneralBipedalWalker(hardcore=True)
   # env.sample()
   env.reset()
   steps = 0
