@@ -9,30 +9,28 @@ from Box2D.b2 import (
   contactListener,
   rayCastCallback
 )
-from color import Color
+from .color import Color
 
 class Hull:
-  _POLY = [
-    (-30,  9), 
-    (  6,  9), 
-    ( 34,  1),
-    ( 34, -8), 
-    (-30, -8)
-  ]
-  _BOUND_COLOR = Color.BLACK
-  _FILL_COLOR = Color.rand()
-
   def __init__(
       self, 
-      world
+      sim,
+      color,
   ):
-    self.sim = world
+    self.sim = sim
+    self.color = color
     self.body = None
     self.fixture = fixtureDef(
       shape=polygonShape(
         vertices=[
-          (x / world.scale, y / world.scale) 
-          for x, y in Hull._POLY
+          (x / sim.scale, y / sim.scale) 
+          for x, y in [
+            (-30,  9), 
+            (  6,  9), 
+            ( 34,  1),
+            ( 34, -8), 
+            (-30, -8)
+          ]
         ]
       ),
       density=5.0,
@@ -51,8 +49,8 @@ class Hull:
       position=(init_x, init_y), 
       fixtures=self.fixture
     )
-    self.body.color1 = Hull._FILL_COLOR
-    self.body.color2 = Hull._BOUND_COLOR
+    self.body.color1 = self.color
+    self.body.color2 = Color.BLACK
     self.body.ApplyForceToCenter(noise, True)
 
 class Lidar:
@@ -82,12 +80,10 @@ class Lidar:
       sim.world.RayCast(lidar, lidar.p1, lidar.p2)
 
 class Leg:
-  _BOUND_COLOR = Color.BLACK
-  _FILL_COLOR = Color.rand()
-
   def __init__(
       self, 
-      world,
+      sim,
+      color,
       top_width,
       top_height,
       bot_width,
@@ -95,13 +91,14 @@ class Leg:
       motors_torque,
       right=False
   ):
-    self.sim = world
+    self.sim = sim
+    self.color = Color.darker(color) if right else Color.lighter(color)
     self.right = right
     self.motors_torque = motors_torque
-    self.leg_down = -8 / world.scale
+    self.leg_down = -8 / sim.scale
 
-    self.top_width = top_width / world.scale
-    self.top_height = top_height / world.scale
+    self.top_width = top_width / sim.scale
+    self.top_height = top_height / sim.scale
     self.top_shift = self.top_height / 2 + self.leg_down
     self.top_body = None
     self.top_fixture = fixtureDef(
@@ -119,8 +116,8 @@ class Leg:
 
     self.joint = None
 
-    self.bot_width = bot_width / world.scale
-    self.bot_height = bot_height / world.scale
+    self.bot_width = bot_width / sim.scale
+    self.bot_height = bot_height / sim.scale
     self.bot_shift = self.top_height + self.bot_height / 2 + self.leg_down
     self.bot_body = None
     self.bot_fixture = fixtureDef(
@@ -169,15 +166,10 @@ class Leg:
       )
     )
 
-    color1 = Color.lighter(Leg._FILL_COLOR)
-    color2 = Color.lighter(Leg._BOUND_COLOR)
-    if self.right:
-      color1 = Color.darker(Leg._FILL_COLOR)
-      color2 = Color.darker(Leg._BOUND_COLOR)
-    self.top_body.color1 = tuple(color1)
-    self.top_body.color2 = tuple(color2)
-    self.bot_body.color1 = tuple(color1)
-    self.bot_body.color2 = tuple(color2)
+    self.top_body.color1 = self.color
+    self.top_body.color2 = Color.BLACK
+    self.bot_body.color1 = self.color
+    self.bot_body.color2 = Color.BLACK
 
 class RobotConfig:
   LEG_TOP_WIDTH  = 8.0
@@ -190,6 +182,9 @@ class RobotConfig:
   SPEED_KNEE     = 6.0
 
   def __init__(self, params=None):
+    self.hull_color = Color.rand()
+    self.leg_color  = Color.rand()
+
     self.params = params if params is not None else np.ones(12)
     self.leg1_top_width  = self.params[0]  * self.LEG_TOP_WIDTH 
     self.leg1_top_height = self.params[1]  * self.LEG_TOP_HEIGHT
@@ -212,14 +207,15 @@ class BipedalRobot:
     self.sim = sim
     self.config = config
 
-    self.hull = Hull(sim)
+    self.hull = Hull(sim, config.hull_color)
     self.lidar = Lidar(config.lidar_range)
 
     self.joint1 = None
     self.joint2 = None
 
     self.leg1 = Leg(
-      sim, 
+      sim,
+      config.leg_color,
       config.leg1_top_width,
       config.leg1_top_height,
       config.leg1_bot_width,
@@ -229,6 +225,7 @@ class BipedalRobot:
     )
     self.leg2 = Leg(
       sim, 
+      config.leg_color,
       config.leg2_top_width,
       config.leg2_top_height,
       config.leg2_bot_width,

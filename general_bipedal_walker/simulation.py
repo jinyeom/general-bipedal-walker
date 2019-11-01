@@ -9,7 +9,7 @@ from Box2D.b2 import (
   revoluteJointDef, 
   contactListener
 )
-from color import Color
+from .color import Color
 
 class Simulation:
   _FPS                  = 50
@@ -116,7 +116,7 @@ class Simulation:
       (    x+(s*w)*self._TERRAIN_STEP, y+(s*h-1)*self._TERRAIN_STEP)
     ]
 
-  def _generate_terrain(self):
+  def generate_terrain(self):
     GRASS, STUMP, STAIRS, PIT = range(4)
 
     state    = GRASS
@@ -230,25 +230,7 @@ class Simulation:
       poly += [(poly[1][0], 0), (poly[0][0], 0)]
       self.terrain_poly.append((poly, Color.DARK_GREEN))
     self.terrain.reverse()
-
-  def _generate_clouds(self):
-    self.cloud_poly = []
-    for i in range(self.terrain_length // 20):
-      x = self.np_random.uniform(0, self.terrain_length) * self.terrain_step
-      y = self.viewport_height / self._SCALE * 3 / 4
-      poly = [
-        (
-          (x+15*self.terrain_step*math.sin(math.pi*2*a/5)+
-           self.np_random.uniform(0,5*self.terrain_step)),
-          (y+5*self.terrain_step*math.cos(math.pi*2*a/5)+
-           self.np_random.uniform(0,5*self.terrain_step))
-        )
-        for a in range(5)
-      ]
-      x1 = min([p[0] for p in poly])
-      x2 = max([p[0] for p in poly])
-      self.cloud_poly.append((poly, x1, x2))
-
+    
   def destroy(self):
     if not self.terrain:
       return
@@ -256,10 +238,6 @@ class Simulation:
     for t in self.terrain:
       self.world.DestroyBody(t)
     self.terrain = []
-
-  def reset(self):
-    self._generate_terrain()
-    self._generate_clouds()
 
   def step(self):
     self.world.Step(1.0 / self.fps, 6 * 30, 2 * 30)
