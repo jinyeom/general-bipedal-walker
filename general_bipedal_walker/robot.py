@@ -135,7 +135,7 @@ class Leg:
 
   @property
   def parts(self):
-    return [self.top_body, self.bot_body]
+    return [self.bot_body, self.top_body]
 
   def reset(self, init_x, init_y):
     self.top_body = self.sim.world.CreateDynamicBody(
@@ -199,8 +199,16 @@ class RobotConfig:
     self.speed_hip       = self.params[10] * self.SPEED_HIP
     self.speed_knee      = self.params[11] * self.SPEED_KNEE
 
-  def sample(self):
-    raise NotImplementedError
+  @classmethod
+  def sample(cls, np_random, low=0.5, high=1.5, symmetric=True):
+    if symmetric:
+      shape_params = np_random.uniform(low, high, size=4)
+      shape_params = np.concatenate((shape_params, shape_params))
+      dyna_params = np_random.uniform(low, high, size=4)
+      params = np.concatenate((shape_params, dyna_params))
+    else:
+      params = np_random.uniform(low, high, size=12)
+    return RobotConfig(params=params)
 
 class BipedalRobot:
   def __init__(self, sim, config):

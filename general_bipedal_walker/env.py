@@ -51,9 +51,10 @@ class GeneralBipedalWalker(gym.Env):
 
     self.reset()
 
-  def augment(self, params):
+  def sample(self, symmetric=True):
     self.robot.destroy()
-    self.robot = BipedalRobot(self.sim, RobotConfig(params))
+    config = RobotConfig.sample(self.np_random, symmetric=symmetric)
+    self.robot = BipedalRobot(self.sim, config)
 
   def seed(self, seed=None):
     self.np_random, seed = seeding.np_random(seed)
