@@ -4,7 +4,6 @@ import gym
 from gym import spaces
 from gym.utils import colorize, seeding
 from gym.envs.classic_control import rendering
-from gym.vector import AsyncVectorEnv
 import Box2D
 from Box2D.b2 import (
   edgeShape, 
@@ -17,7 +16,7 @@ from Box2D.b2 import (
 from .simulation import Simulation
 from .robot import RobotConfig, BipedalRobot
 from .color import Color
-from .vector import worker
+from .vector import AsyncVectorEnv, worker
 
 class ContactDetector(contactListener):
   def __init__(self, env):
@@ -263,6 +262,8 @@ class GeneralBipedalWalker(gym.Env):
     return self.viewer.render(return_rgb_array=mode=='rgb_array')
 
 def make(*wrappers, hardcore=False, num_envs=1):
+  if num_envs == 1:
+    return GeneralBipedalWalker(hardcore=hardcore)
   def _make():
     env = GeneralBipedalWalker(hardcore=hardcore)
     for wrapper in wrappers:

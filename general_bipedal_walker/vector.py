@@ -1,5 +1,16 @@
 import sys
+from enum import Enum
+from gym.vector import AsyncVectorEnv as AsyncVectorEnv_
+from gym.error import AlreadyPendingCallError
 from gym.vector.utils import write_to_shared_memory
+
+class AsyncVectorEnv(AsyncVectorEnv_):
+  def sample(self, symmetric=True):
+    self._assert_is_running()
+    for pipe in self.parent_pipes:
+      pipe.send(('sample', symmetric))
+    _, successes = zip(*[pipe.recv() for pipe in self.parent_pipes])
+    self._raise_if_errors(successes)
 
 def worker(
     index, 
@@ -18,6 +29,7 @@ def worker(
       command, data = pipe.recv()
       if command == 'sample':
         env.sample(data)
+        pipe.send((None, True))
       elif command == 'reset':
         observation = env.reset()
         write_to_shared_memory(
