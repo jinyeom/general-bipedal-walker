@@ -4,6 +4,7 @@ import gym
 from gym import spaces
 from gym.utils import colorize, seeding
 from gym.envs.classic_control import rendering
+from gym.vector import AsyncVectorEnv
 import Box2D
 from Box2D.b2 import (
   edgeShape, 
@@ -259,3 +260,12 @@ class GeneralBipedalWalker(gym.Env):
     self.render_flags()
 
     return self.viewer.render(return_rgb_array=mode=='rgb_array')
+
+def make(*wrappers, hardcore=False, num_envs=1):
+  def _make():
+    env = GeneralBipedalWalker(hardcore=hardcore)
+    for wrapper in wrappers:
+      env = wrapper(env)
+    return env
+  env_fns = [_make for _ in range(num_envs)]
+  return AsyncVectorEnv(env_fns)

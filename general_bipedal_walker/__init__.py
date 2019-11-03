@@ -1,1 +1,1 @@
-from .env import GeneralBipedalWalker
+from .env import make
