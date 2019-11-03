@@ -1,7 +1,7 @@
 import sys
 from gym.vector.utils import write_to_shared_memory
 
-def _worker_shared_memory(
+def worker(
     index, 
     env_fn, 
     pipe, 
