@@ -12,27 +12,14 @@ from Box2D.b2 import (
 from .color import Color
 
 class Hull:
-  def __init__(
-      self, 
-      sim,
-      color,
-  ):
-    self.sim = sim
-    self.color = color
+  VERTICES = [(-30,  9), (6, 9), (34, 1), (34, -8), (-30, -8)]
+
+  def __init__(self, config):
+    self.color = config.hull_color
     self.body = None
+    vertices = [(x / config.scale, y / config.scale) for x, y in Hull.VERTICES]
     self.fixture = fixtureDef(
-      shape=polygonShape(
-        vertices=[
-          (x / sim.scale, y / sim.scale) 
-          for x, y in [
-            (-30,  9), 
-            (  6,  9), 
-            ( 34,  1),
-            ( 34, -8), 
-            (-30, -8)
-          ]
-        ]
-      ),
+      shape=polygonShape(vertices=vertices),
       density=5.0,
       friction=0.1,
       categoryBits=0x0020,
@@ -44,8 +31,8 @@ class Hull:
   def parts(self):
     return [self.body]
 
-  def reset(self, init_x, init_y, noise):
-    self.body = self.sim.world.CreateDynamicBody(
+  def reset(self, world, init_x, init_y, noise):
+    self.body = world.CreateDynamicBody(
       position=(init_x, init_y), 
       fixtures=self.fixture
     )
@@ -62,14 +49,14 @@ class Lidar:
       self.fraction = fraction
       return 0
 
-  def __init__(self, scan_range):
-    self.scan_range = scan_range
+  def __init__(self, config):
+    self.scan_range = config.lidar_range
     self.callbacks = None
 
   def reset(self):
     self.callbacks = [Lidar.Callback() for _ in range(10)]
 
-  def scan(self, pos, sim):
+  def scan(self, world, pos):
     for i, lidar in enumerate(self.callbacks):
       self.callbacks[i].fraction = 1.0
       self.callbacks[i].p1 = pos
@@ -77,56 +64,45 @@ class Lidar:
         pos[0] + math.sin(1.5 * i / 10.0) * self.scan_range,
         pos[1] - math.cos(1.5 * i / 10.0) * self.scan_range
       )
-      sim.world.RayCast(lidar, lidar.p1, lidar.p2)
+      world.RayCast(lidar, lidar.p1, lidar.p2)
 
 class Leg:
-  def __init__(
-      self, 
-      sim,
-      color,
-      top_width,
-      top_height,
-      bot_width,
-      bot_height,
-      motors_torque,
-      right=False
-  ):
-    self.sim = sim
-    self.color = Color.darker(color) if right else Color.lighter(color)
-    self.right = right
-    self.motors_torque = motors_torque
-    self.leg_down = -8 / sim.scale
+  def __init__(self, config, left=True):
+    self.left = left
+    if self.left:
+      self.color = Color.lighter(config.leg_color)
+      self.top_width = config.leg1_top_width / config.scale
+      self.top_height = config.leg1_top_height / config.scale
+      self.bot_width = config.leg1_bot_width / config.scale
+      self.bot_height = config.leg1_bot_height / config.scale
+    else:
+      self.color = Color.darker(config.leg_color)
+      self.top_width = config.leg2_top_width / config.scale
+      self.top_height = config.leg2_top_height / config.scale
+      self.bot_width = config.leg2_bot_width / config.scale
+      self.bot_height = config.leg2_bot_height / config.scale
+    self.leg_down = -8 / config.scale
 
-    self.top_width = top_width / sim.scale
-    self.top_height = top_height / sim.scale
+    # configure the top leg part 
     self.top_shift = self.top_height / 2 + self.leg_down
     self.top_body = None
     self.top_fixture = fixtureDef(
-      shape=polygonShape(
-        box=(
-          self.top_width / 2, 
-          self.top_height / 2
-        )
-      ),
+      shape=polygonShape(box=(self.top_width / 2, self.top_height / 2)),
       density=1.0,
       restitution=0.0,
       categoryBits=0x0020,
       maskBits=0x001
     )
 
+    # configure the motor torque
+    self.motors_torque = config.motors_torque
     self.joint = None
 
-    self.bot_width = bot_width / sim.scale
-    self.bot_height = bot_height / sim.scale
+    # configure the bottom leg par
     self.bot_shift = self.top_height + self.bot_height / 2 + self.leg_down
     self.bot_body = None
     self.bot_fixture = fixtureDef(
-      shape=polygonShape(
-        box=(
-          self.bot_width / 2, 
-          self.bot_height / 2
-        )
-      ),
+      shape=polygonShape(box=(self.bot_width / 2, self.bot_height / 2)),
       density=1.0,
       restitution=0.0,
       categoryBits=0x0020,
@@ -137,21 +113,21 @@ class Leg:
   def parts(self):
     return [self.bot_body, self.top_body]
 
-  def reset(self, init_x, init_y):
-    self.top_body = self.sim.world.CreateDynamicBody(
+  def reset(self, world, init_x, init_y):
+    self.top_body = world.CreateDynamicBody(
       position=(init_x, init_y - self.top_shift),
-      angle=-0.05 if self.right else 0.05,
+      angle=0.05 if self.left else -0.05,
       fixtures=self.top_fixture
     )
 
-    self.bot_body = self.sim.world.CreateDynamicBody(
+    self.bot_body = world.CreateDynamicBody(
       position=(init_x, init_y - self.bot_shift),
-      angle=-0.05 if self.right else 0.05,
+      angle=0.05 if self.left else -0.05,
       fixtures=self.bot_fixture
     )
     self.bot_body.ground_contact = False
 
-    self.joint = self.sim.world.CreateJoint(
+    self.joint = world.CreateJoint(
       revoluteJointDef(
         bodyA=self.top_body,
         bodyB=self.bot_body,
@@ -181,7 +157,9 @@ class RobotConfig:
   SPEED_HIP      = 4.0
   SPEED_KNEE     = 6.0
 
-  def __init__(self, params=None):
+  def __init__(self, scale, params=None):
+    self.scale = scale
+
     self.hull_color = Color.rand()
     self.leg_color  = Color.rand()
 
@@ -200,7 +178,7 @@ class RobotConfig:
     self.speed_knee      = self.params[11] * self.SPEED_KNEE
 
   @classmethod
-  def sample(cls, np_random, low=0.5, high=1.5, symmetric=True):
+  def sample(cls, np_random, low=0.75, high=1.25, symmetric=True):
     if symmetric:
       shape_params = np_random.uniform(low, high, size=4)
       shape_params = np.concatenate((shape_params, shape_params))
@@ -211,36 +189,18 @@ class RobotConfig:
     return RobotConfig(params=params)
 
 class BipedalRobot:
-  def __init__(self, sim, config):
-    self.sim = sim
+  def __init__(self, config):
     self.config = config
+    self.world = None
 
-    self.hull = Hull(sim, config.hull_color)
-    self.lidar = Lidar(config.lidar_range)
+    self.hull = Hull(config)
+    self.lidar = Lidar(config)
 
     self.joint1 = None
     self.joint2 = None
 
-    self.leg1 = Leg(
-      sim,
-      config.leg_color,
-      config.leg1_top_width,
-      config.leg1_top_height,
-      config.leg1_bot_width,
-      config.leg1_bot_height,
-      config.motors_torque,
-      right=False
-    )
-    self.leg2 = Leg(
-      sim, 
-      config.leg_color,
-      config.leg2_top_width,
-      config.leg2_top_height,
-      config.leg2_bot_width,
-      config.leg2_bot_height,
-      config.motors_torque,
-      right=True
-    )
+    self.leg1 = Leg(config, left=True)
+    self.leg2 = Leg(config, left=False)
 
   @property
   def parts(self):
@@ -253,16 +213,18 @@ class BipedalRobot:
     return [self.joint1, self.leg1.joint, self.joint2, self.leg2.joint]
 
   def destroy(self):
-    for part in self.parts:
-      if part is not None:
-        self.sim.world.DestroyBody(part)
+    if self.world is not None:
+      for part in self.parts:
+        if part is not None:
+          self.world.DestroyBody(part)
 
-  def reset(self, init_x, init_y, noise):
-    self.hull.reset(init_x, init_y, noise)
-    self.leg1.reset(init_x, init_y)
-    self.leg2.reset(init_x, init_y)
+  def reset(self, world, init_x, init_y, noise):
+    self.world = world
+    self.hull.reset(world, init_x, init_y, noise)
+    self.leg1.reset(world, init_x, init_y)
+    self.leg2.reset(world, init_x, init_y)
     self.lidar.reset()
-    self.joint1 = self.sim.world.CreateJoint(
+    self.joint1 = world.CreateJoint(
       revoluteJointDef(
         bodyA=self.hull.body,
         bodyB=self.leg1.top_body,
@@ -276,7 +238,7 @@ class BipedalRobot:
         upperAngle=1.1
       )
     )
-    self.joint2 = self.sim.world.CreateJoint(
+    self.joint2 = world.CreateJoint(
         revoluteJointDef(
         bodyA=self.hull.body,
         bodyB=self.leg2.top_body,
@@ -303,6 +265,6 @@ class BipedalRobot:
     joint3.maxMotorTorque = self.config.motors_torque * np.clip(np.abs(action[3]), 0, 1)
     return self.joints
 
-  def scan(self, pos):
-    self.lidar.scan(pos, self.sim)
+  def scan(self, world, pos):
+    self.lidar.scan(world, pos)
     return self.lidar.callbacks
