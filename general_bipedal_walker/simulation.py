@@ -11,6 +11,21 @@ from Box2D.b2 import (
 )
 from .color import Color
 
+class Terrain:
+  GRASS = 0
+  STUMP = 1
+  STAIRS = 2 
+  PIT = 3
+
+  @staticmethod
+  def rand(np_random=None, include_grass=False):
+    if np_random is None:
+      np_random = np.random
+    options = [Terrain.STUMP, Terrain.STAIRS, Terrain.PIT]
+    if include_grass:
+      options.append(Terrain.GRASS)
+    return np_random.choice(options)
+      
 class Simulation:
   _FPS                  = 50
   _SCALE                = 30.0
@@ -88,104 +103,47 @@ class Simulation:
   def limit(self):
     return self._BIPED_HARDCORE_LIMIT if self.hardcore else self._BIPED_LIMIT
 
-  def _pit_poly(self, x, y, counter):
-    return [
-      (                   x,                      y), 
-      (x+self._TERRAIN_STEP,                      y), 
-      (x+self._TERRAIN_STEP, y-4*self._TERRAIN_STEP), 
-      (                   x, y-4*self._TERRAIN_STEP)
-    ]
-
-  def _stump_poly(self, x, y, counter):
-    return [
-      (                           x,                            y), 
-      (x+counter*self._TERRAIN_STEP,                            y), 
-      (x+counter*self._TERRAIN_STEP, y+counter*self._TERRAIN_STEP), 
-      (                           x, y+counter*self._TERRAIN_STEP),
-    ]
-
-  def _stair_poly(self, s, x, y, w, h):
-    return [
-      (    x+(s*w)*self._TERRAIN_STEP,   y+(s*h)*self._TERRAIN_STEP), 
-      (x+((1+s)*w)*self._TERRAIN_STEP,   y+(s*h)*self._TERRAIN_STEP),
-      (x+((1+s)*w)*self._TERRAIN_STEP, y+(s*h-1)*self._TERRAIN_STEP),
-      (    x+(s*w)*self._TERRAIN_STEP, y+(s*h-1)*self._TERRAIN_STEP)
-    ]
-
   def generate_terrain(self):
-    self.terrain   = []
-    self.terrain_x = []
-    self.terrain_y = []
-
+    state = Terrain.GRASS
     velocity = 0.0
     y = self.terrain_height
+    counter = self.terrain_startpad
+    oneshot = False
+
+    self.terrain = []
+    self.terrain_x = []
+    self.terrain_y = []
 
     for i in range(self.terrain_length):
       x = i * self.terrain_step
       self.terrain_x.append(x)
 
-      sign = np.sign(self.terrain_height - y)
-      velocity = 0.8 * velocity + sign * 0.01
-      if i > self.terrain_startpad:
-        noise = self.np_random.uniform(-1, 1)
-        velocity += noise / self.scale
-      y += velocity
-      self.terrain_y.append(y)
-
-    self.terrain_poly = []
-    for i in range(self.terrain_length - 1):
-      poly = [(self.terrain_x[i], self.terrain_y[i]), (self.terrain_x[i+1], self.terrain_y[i+1])]
-      self.fd_edge.shape.vertices = poly
-      t = self.world.CreateStaticBody(fixtures=self.fd_edge)
-      t.color1 = Color.WHITE if i % 2 == 0 else Color.BLACK
-      t.color2 = Color.WHITE if i % 2 == 0 else Color.BLACK
-      self.terrain.append(t)
-
-      poly += [(poly[1][0], 0), (poly[0][0], 0)]
-      self.terrain_poly.append((poly, Color.DARK_GREEN))
-    self.terrain.reverse()
-
-  def _generate_terrain(self):
-    GRASS, STUMP, STAIRS, PIT = range(4)
-
-    state    = GRASS
-    velocity = 0.0
-    y        = self._TERRAIN_HEIGHT
-    counter  = self._TERRAIN_STARTPAD
-    oneshot  = False
-
-    self.terrain   = []
-    self.terrain_x = []
-    self.terrain_y = []
-
-    for i in range(self._TERRAIN_LENGTH):
-      x = i * self._TERRAIN_STEP
-      self.terrain_x.append(x)
-
-      if state == GRASS and not oneshot:
-        sign = np.sign(self._TERRAIN_HEIGHT - y)
+      if state == Terrain.GRASS and not oneshot:
+        sign = np.sign(self.terrain_height - y)
         velocity = 0.8 * velocity + sign * 0.01
-        if i > self._TERRAIN_STARTPAD:
+        if i > self.terrain_startpad:
           noise = self.np_random.uniform(-1, 1)
-          velocity += noise / self._SCALE
+          velocity += noise / self.scale
         y += velocity
 
-      elif state == PIT and oneshot:
+      elif state == Terrain.PIT and oneshot:
         color1 = Color.rand()
         color2 = Color.BLACK
 
         counter = self.np_random.randint(3, 5)
-        poly = self._pit_poly(x, y, counter)
+        poly = [
+          (x, y), 
+          (x + self.terrain_step, y), 
+          (x + self.terrain_step, y - 4 * self.terrain_step), 
+          (x, y - 4 * self.terrain_step)
+        ]
         self.fd_polygon.shape.vertices = poly
         t = self.world.CreateStaticBody(fixtures=self.fd_polygon)
         t.color1 = color1
         t.color2 = color2
         self.terrain.append(t)
 
-        self.fd_polygon.shape.vertices = [
-          (x + self._TERRAIN_STEP * counter, y) 
-          for x, y in poly
-        ]
+        self.fd_polygon.shape.vertices = [(x + self.terrain_step * counter, y) for x, y in poly]
         t = self.world.CreateStaticBody(fixtures=self.fd_polygon)
         t.color1 = color1
         t.color2 = color2
@@ -194,60 +152,70 @@ class Simulation:
         counter += 2
         original_y = y
 
-      elif state == PIT and not oneshot:
+      elif state == Terrain.PIT and not oneshot:
         y = original_y
         if counter > 1:
-          y -= 4 * self._TERRAIN_STEP
+          y -= 4 * self.terrain_step
 
-      elif state == STUMP and oneshot:
+      elif state == Terrain.STUMP and oneshot:
         counter = self.np_random.randint(1, 3)
-        poly = self._stump_poly(x, y, counter)
+        poly = [
+          (x, y), 
+          (x + counter * self.terrain_step, y), 
+          (x + counter * self.terrain_step, y + counter * self.terrain_step), 
+          (x, y + counter * self.terrain_step),
+        ]
         self.fd_polygon.shape.vertices = poly
+
         t = self.world.CreateStaticBody(fixtures=self.fd_polygon)
         t.color1 = Color.rand()
         t.color2 = Color.BLACK
         self.terrain.append(t)
 
-      elif state == STAIRS and oneshot:
+      elif state == Terrain.STAIRS and oneshot:
         color1 = Color.rand()
         color2 = Color.BLACK
 
         stair_steps = self.np_random.randint(3, 5)
         stair_width = self.np_random.randint(4, 5)
         stair_height = 1 if self.np_random.rand() > 0.5 else -1
+
         original_y = y
         for s in range(stair_steps):
-          poly = self._stair_poly(s, x, y, stair_width, stair_height)
-          self.fd_polygon.shape.vertices = poly
+          self.fd_polygon.shape.vertices = [
+            (x + (s * stair_width) * self.terrain_step, y + (s * stair_height) * self.terrain_step), 
+            (x + ((1 + s) * stair_width) * self.terrain_step, y + (s * stair_height) * self.terrain_step),
+            (x + ((1 + s) * stair_width) * self.terrain_step, y + (s * stair_height - 1) * self.terrain_step),
+            (x + (s * stair_width) * self.terrain_step, y + (s * stair_height - 1) * self.terrain_step)
+          ]
           t = self.world.CreateStaticBody(fixtures=self.fd_polygon)
           t.color1 = color1
           t.color2 = color2
           self.terrain.append(t)
         counter = stair_steps * stair_width
 
-      elif state == STAIRS and not oneshot:
+      elif state == Terrain.STAIRS and not oneshot:
         s = stair_steps * stair_width - counter - stair_height
         n = s / stair_width
         y = original_y + (n * stair_height) * self.terrain_step
 
-      oneshot = False
       self.terrain_y.append(y)
+      oneshot = False
       counter -= 1
+
       if counter == 0:
-        counter = self.np_random.randint(
-          self.terrain_grass / 2, 
-          self.terrain_grass
-        )
-        if state == GRASS and self.hardcore:
-          state = self.np_random.randint(1, 4)
+        counter = self.np_random.randint(self.terrain_grass / 2, self.terrain_grass)
+        
+        if state == Terrain.GRASS and self.hardcore:
+          state = Terrain.rand(np_random=self.np_random)
         else:
-          state = GRASS
+          state = Terrain.GRASS
         oneshot = True
 
     self.terrain_poly = []
     for i in range(self.terrain_length - 1):
       poly = [
-        (  self.terrain_x[i],   self.terrain_y[i]), 
+        (self.terrain_x[i], self.terrain_y[i]), 
         (self.terrain_x[i+1], self.terrain_y[i+1])
       ]
       self.fd_edge.shape.vertices = poly

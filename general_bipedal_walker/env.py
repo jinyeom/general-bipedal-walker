@@ -100,21 +100,14 @@ class GeneralBipedalWalker(gym.Env):
       reward = shaping - self.prev_shaping
     self.prev_shaping = shaping
     for a in action:
-      reward -= (
-        0.00035 * 
-        self.robot.config.motors_torque * 
-        np.clip(np.abs(a), 0, 1)
-      )
+      reward -= (0.00035 * self.robot.config.motors_torque * np.clip(np.abs(a), 0, 1))
     return reward
 
   def done(self):
     done = False
     if self.game_over or self.robot.hull.body.position[0] < 0:
       done = True
-    goal = (
-      self.sim.terrain_step *
-      (self.sim.terrain_length - self.sim.terrain_grass)
-    )
+    goal = (self.sim.terrain_step * (self.sim.terrain_length - self.sim.terrain_grass))
     if self.robot.hull.body.position[0] > goal:
       done = True
     if self.timer >= self.sim.limit:
@@ -157,17 +150,17 @@ class GeneralBipedalWalker(gym.Env):
     self.timer += 1
     return state, reward, done, {}
 
-  def render_sky(self):
+  def _render_sky(self):
     self.viewer.draw_polygon([
-        (                        self.scroll,                      0), 
-        (self.scroll + self.sim.scaled_width,                      0),
+        (self.scroll, 0), 
+        (self.scroll + self.sim.scaled_width, 0),
         (self.scroll + self.sim.scaled_width, self.sim.scaled_height), 
-        (                        self.scroll, self.sim.scaled_height)
+        (self.scroll, self.sim.scaled_height)
       ], 
       color=Color.LIGHT_GRAY
     )
 
-  def render_terrain(self):
+  def _render_terrain(self):
     for poly, color in self.sim.terrain_poly:
       if poly[1][0] < self.scroll:
         continue
@@ -175,7 +168,7 @@ class GeneralBipedalWalker(gym.Env):
         continue
       self.viewer.draw_polygon(poly, color=color)
 
-  def render_lidar(self):
+  def _render_lidar(self):
     self.lidar_render = (self.lidar_render + 1) % 100
     idx = self.lidar_render
     if idx < 2 * len(self.robot.lidar.callbacks):
@@ -184,51 +177,33 @@ class GeneralBipedalWalker(gym.Env):
       else:
         idx = len(self.robot.lidar.callbacks) - idx - 1
         line = self.robot.lidar.callbacks[idx]
-      self.viewer.draw_polyline(
-        [line.p1, line.p2],
-        color=Color.RED, 
-        linewidth=2
-      )
+      self.viewer.draw_polyline([line.p1, line.p2], color=Color.RED, linewidth=2)
 
-  def render_assets(self):
+  def _render_assets(self):
     for obj in self.assets:
       for f in obj.fixtures:
         trans = f.body.transform
         if type(f.shape) is circleShape:
+          # NOTE: this doesn't seem to be used at the moment, but we're going to keep it,
+          # in case we add additional circle-shaped obstacles.
           t = rendering.Transform(translation=trans*f.shape.pos)
-          self.viewer.draw_circle(
-            f.shape.radius, 
-            30, 
-            color=obj.color1
-          ).add_attr(t)
-          self.viewer.draw_circle(
-            f.shape.radius, 
-            30, 
-            color=obj.color2, 
-            filled=False, 
-            linewidth=2
-          ).add_attr(t)
+          self.viewer.draw_circle(f.shape.radius, 30, color=obj.color1).add_attr(t)
+          self.viewer.draw_circle(f.shape.radius, 30, color=obj.color2, filled=False, linewidth=2).add_attr(t)
         else:
           path = [trans * v for v in f.shape.vertices]
           self.viewer.draw_polygon(path, color=obj.color1)
           path.append(path[0])
           self.viewer.draw_polyline(path, color=obj.color2, linewidth=2)
 
-  def render_flags(self):
+  def _render_flags(self):
     flagy1 = self.sim.terrain_height
     flagy2 = flagy1 + 50 / self.sim.scale
     x = self.sim.terrain_step * 3
-    self.viewer.draw_polyline([
-        (x, flagy1), 
-        (x, flagy2)
-      ], 
-      color=Color.BLACK,
-      linewidth=2
-    )
+    self.viewer.draw_polyline([(x, flagy1), (x, flagy2)], color=Color.BLACK, linewidth=2)
     f = [
-      (                      x,                       flagy2), 
-      (                      x, flagy2 - 10 / self.sim.scale), 
-      (x + 25 / self.sim.scale,  flagy2 - 5 / self.sim.scale)
+      (x, flagy2), 
+      (x, flagy2 - 10 / self.sim.scale), 
+      (x + 25 / self.sim.scale, flagy2 - 5 / self.sim.scale)
     ]
     self.viewer.draw_polygon(f, color=Color.RED)
     self.viewer.draw_polyline(f + [f[0]], color=Color.BLACK, linewidth=2)
@@ -241,23 +216,14 @@ class GeneralBipedalWalker(gym.Env):
       return
 
     if self.viewer is None:
-      self.viewer = rendering.Viewer(
-        self.sim.viewport_width, 
-        self.sim.viewport_height
-      )
+      self.viewer = rendering.Viewer(self.sim.viewport_width, self.sim.viewport_height)
 
-    self.viewer.set_bounds(
-      self.scroll, 
-      self.sim.scaled_width + self.scroll, 
-      0, 
-      self.sim.scaled_height
-    )
-
-    self.render_sky()
-    self.render_terrain()
-    self.render_lidar()
-    self.render_assets()
-    self.render_flags()
+    self.viewer.set_bounds(self.scroll, self.sim.scaled_width + self.scroll, 0, self.sim.scaled_height)
+    self._render_sky()
+    self._render_terrain()
+    self._render_lidar()
+    self._render_assets()
+    self._render_flags()
 
     return self.viewer.render(return_rgb_array=mode=='rgb_array')
 
