@@ -31,15 +31,11 @@ class Simulation:
     self.world = Box2D.b2World()
     self.terrain = None
     self.fd_polygon = fixtureDef(
-      shape=polygonShape(
-        vertices=[(0, 0), (1, 0), (1, -1), (0, -1)]
-      ), 
+      shape=polygonShape(vertices=[(0, 0), (1, 0), (1, -1), (0, -1)]), 
       friction=self._FRICTION
     )
     self.fd_edge = fixtureDef(
-      shape=edgeShape(
-        vertices=[(0, 0), (1, 1)]
-      ), 
+      shape=edgeShape(vertices=[(0, 0), (1, 1)]), 
       friction=self._FRICTION, 
       categoryBits=0x0001
     )
@@ -117,6 +113,39 @@ class Simulation:
     ]
 
   def generate_terrain(self):
+    self.terrain   = []
+    self.terrain_x = []
+    self.terrain_y = []
+
+    velocity = 0.0
+    y = self.terrain_height
+
+    for i in range(self.terrain_length):
+      x = i * self.terrain_step
+      self.terrain_x.append(x)
+
+      sign = np.sign(self.terrain_height - y)
+      velocity = 0.8 * velocity + sign * 0.01
+      if i > self.terrain_startpad:
+        noise = self.np_random.uniform(-1, 1)
+        velocity += noise / self.scale
+      y += velocity
+      self.terrain_y.append(y)
+
+    self.terrain_poly = []
+    for i in range(self.terrain_length - 1):
+      poly = [(self.terrain_x[i], self.terrain_y[i]), (self.terrain_x[i+1], self.terrain_y[i+1])]
+      self.fd_edge.shape.vertices = poly
+      t = self.world.CreateStaticBody(fixtures=self.fd_edge)
+      t.color1 = Color.WHITE if i % 2 == 0 else Color.BLACK
+      t.color2 = Color.WHITE if i % 2 == 0 else Color.BLACK
+      self.terrain.append(t)
+
+      poly += [(poly[1][0], 0), (poly[0][0], 0)]
+      self.terrain_poly.append((poly, Color.DARK_GREEN))
+    self.terrain.reverse()
+
+  def _generate_terrain(self):
     GRASS, STUMP, STAIRS, PIT = range(4)
 
     state    = GRASS

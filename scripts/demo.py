@@ -3,7 +3,7 @@ from general_bipedal_walker import GeneralBipedalWalker
 
 def demo():
   # Heurisic: suboptimal, have no notion of balance.
-  env = GeneralBipedalWalker(hardcore=False)
+  env = GeneralBipedalWalker(hardcore=True)
   env.sample()
   env.reset()
   steps = 0
