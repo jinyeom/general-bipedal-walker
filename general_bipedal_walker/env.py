@@ -43,7 +43,7 @@ class GeneralBipedalWalker(gym.Env):
     
     self.seed()
     self.sim = Simulation(self.np_random, hardcore)
-    self.robot = BipedalRobot(self.sim, RobotConfig())
+    self.robot = BipedalRobot(RobotConfig(self.sim.scale))
 
     os_lim = np.array([np.inf for _ in range(24)])
     as_lim = np.array([1 for _ in range(4)])
@@ -55,7 +55,7 @@ class GeneralBipedalWalker(gym.Env):
   def sample(self, symmetric=True):
     self.robot.destroy()
     config = RobotConfig.sample(self.np_random, symmetric=symmetric)
-    self.robot = BipedalRobot(self.sim, config)
+    self.robot = BipedalRobot(config)
 
   def seed(self, seed=None):
     self.np_random, seed = seeding.np_random(seed)
@@ -79,7 +79,7 @@ class GeneralBipedalWalker(gym.Env):
     init_noise = (self.np_random.uniform(-5, 5), 0)
 
     self.sim.generate_terrain()
-    self.robot.reset(init_x, init_y, init_noise)
+    self.robot.reset(self.sim.world, init_x, init_y, init_noise)
     self.assets = self.sim.terrain + self.robot.parts
     
     self.game_over = False
@@ -144,7 +144,7 @@ class GeneralBipedalWalker(gym.Env):
       joints[3].speed / self.robot.config.speed_knee,
       1.0 if self.robot.leg2.bot_body.ground_contact else 0.0
     ]
-    lidar_state = [lidar.fraction for lidar in self.robot.scan(pos)]
+    lidar_state = [lidar.fraction for lidar in self.robot.scan(self.sim.world, pos)]
     state = np.array(joint_state + lidar_state, dtype=np.float32)
     self.scroll = pos[0] - self.sim.scaled_width / 5
 
