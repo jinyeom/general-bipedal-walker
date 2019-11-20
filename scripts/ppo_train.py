@@ -114,7 +114,7 @@ if __name__ == "__main__":
   parser.add_argument('--max-grad-norm', type=float, default=0.5, help='max norm of gradients (default: 0.5)')
   parser.add_argument('--seed', type=int, default=1, help='random seed (default: 1)')
   parser.add_argument('--num-processes', type=int, default=16, help='how many training CPU processes to use (default: 16)')
-  parser.add_argument('--num-steps', type=int, default=5, help='number of forward steps in A2C (default: 5)')
+  parser.add_argument('--num-steps', type=int, default=5, help='number of forward steps (default: 5)')
   parser.add_argument('--ppo-epoch', type=int, default=4, help='number of ppo epochs (default: 4)')
   parser.add_argument('--num-mini-batch', type=int, default=32, help='number of batches for ppo (default: 32)')
   parser.add_argument('--clip-param', type=float, default=0.2, help='ppo clip parameter (default: 0.2)')
