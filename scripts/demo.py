@@ -5,7 +5,6 @@ def demo():
   # Heurisic: suboptimal, have no notion of balance.
   env = GeneralBipedalWalker(hardcore=False)
   env.sample()
-  env.reset()
   steps = 0
   total_reward = 0
   a = np.array([0.0, 0.0, 0.0, 0.0])

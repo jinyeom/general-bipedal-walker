@@ -56,6 +56,7 @@ class GeneralBipedalWalker(gym.Env):
     self.robot.destroy()
     config = RobotConfig.sample(self.sim.scale, self.np_random, symmetric=symmetric)
     self.robot = BipedalRobot(config)
+    return self.reset()
 
   def seed(self, seed=None):
     self.np_random, seed = seeding.np_random(seed)
