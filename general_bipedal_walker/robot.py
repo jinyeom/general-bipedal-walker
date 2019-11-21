@@ -178,7 +178,7 @@ class RobotConfig:
     self.speed_knee      = self.params[11] * self.SPEED_KNEE
 
   @classmethod
-  def sample(cls, np_random, low=0.75, high=1.25, symmetric=True):
+  def sample(cls, scale, np_random, low=0.75, high=1.25, symmetric=True):
     if symmetric:
       shape_params = np_random.uniform(low, high, size=4)
       shape_params = np.concatenate((shape_params, shape_params))
@@ -186,7 +186,7 @@ class RobotConfig:
       params = np.concatenate((shape_params, dyna_params))
     else:
       params = np_random.uniform(low, high, size=12)
-    return RobotConfig(params=params)
+    return RobotConfig(scale, params=params)
 
 class BipedalRobot:
   def __init__(self, config):
