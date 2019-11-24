@@ -15,10 +15,10 @@ from gym.vector.utils import (
 )
 
 class ParameterizedAsyncVectorEnv(AsyncVectorEnv):
-  def sample(self, symmetric=True):
+  def sample(self, low, high, symmetric=True):
     self._assert_is_running()
     for pipe in self.parent_pipes:
-      pipe.send(('sample', symmetric))
+      pipe.send(('sample', (low, high, symmetric)))
     params, successes = zip(*[pipe.recv() for pipe in self.parent_pipes])
     self._raise_if_errors(successes)
     params = np.stack(params, axis=0)
@@ -34,7 +34,7 @@ def worker(index, env_fn, pipe, parent_pipe, shared_memory, error_queue):
     while True:
       command, data = pipe.recv()
       if command == 'sample':
-        param, observation = env.sample(data)
+        param, observation = env.sample(*data)
         write_to_shared_memory(index, observation, shared_memory, observation_space)
         pipe.send((param, True))
       elif command == 'reset':

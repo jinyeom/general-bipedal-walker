@@ -65,7 +65,7 @@ class GeneralBipedalWalker(gym.Env):
       symmetric=symmetric
     )
     self.robot = BipedalRobot(config)
-    return config.params, self.reset()
+    return config.params.astype(np.float32), self.reset()
 
   def seed(self, seed=None):
     self.np_random, seed = seeding.np_random(seed)
