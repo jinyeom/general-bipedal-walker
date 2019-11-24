@@ -1,18 +1,29 @@
 import sys
 from copy import deepcopy
 from enum import Enum
-from gym.vector import AsyncVectorEnv as AsyncVectorEnv_
+import multiprocessing as mp
+import numpy as np
+from gym.spaces import Box
+from gym.vector import AsyncVectorEnv
 from gym.error import AlreadyPendingCallError
-from gym.vector.utils import write_to_shared_memory, concatenate
+from gym.vector.utils import (
+  create_shared_memory,
+  create_empty_array,
+  read_from_shared_memory,
+  write_to_shared_memory, 
+  concatenate
+)
 
-class AsyncVectorEnv(AsyncVectorEnv_):
+class ParameterizedAsyncVectorEnv(AsyncVectorEnv):
   def sample(self, symmetric=True):
     self._assert_is_running()
     for pipe in self.parent_pipes:
       pipe.send(('sample', symmetric))
-    _, successes = zip(*[pipe.recv() for pipe in self.parent_pipes])
+    params, successes = zip(*[pipe.recv() for pipe in self.parent_pipes])
     self._raise_if_errors(successes)
-    return deepcopy(self.observations) if self.copy else self.observations
+    params = np.stack(params, axis=0)
+    observations = deepcopy(self.observations) if self.copy else self.observations
+    return params, observations
 
 def worker(index, env_fn, pipe, parent_pipe, shared_memory, error_queue):
   assert shared_memory is not None
@@ -23,9 +34,9 @@ def worker(index, env_fn, pipe, parent_pipe, shared_memory, error_queue):
     while True:
       command, data = pipe.recv()
       if command == 'sample':
-        observation = env.sample(data)
+        param, observation = env.sample(data)
         write_to_shared_memory(index, observation, shared_memory, observation_space)
-        pipe.send((None, True))
+        pipe.send((param, True))
       elif command == 'reset':
         observation = env.reset()
         write_to_shared_memory(index, observation, shared_memory, observation_space)
