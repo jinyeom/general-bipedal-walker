@@ -16,7 +16,7 @@ from Box2D.b2 import (
 from .simulation import Simulation
 from .robot import RobotConfig, BipedalRobot
 from .color import Color
-from .vector import AsyncVectorEnv, worker
+from .vector import ParameterizedAsyncVectorEnv, worker
 
 class ContactDetector(contactListener):
   def __init__(self, env):
@@ -246,4 +246,4 @@ def make(*wrappers, hardcore=False, num_envs=1):
       env = wrapper(env)
     return env
   env_fns = [_make for _ in range(num_envs)]
-  return AsyncVectorEnv(env_fns, worker=worker)
+  return ParameterizedAsyncVectorEnv(env_fns, worker=worker)
