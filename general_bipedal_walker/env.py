@@ -45,8 +45,11 @@ class GeneralBipedalWalker(gym.Env):
     self.sim = Simulation(self.np_random, hardcore)
     self.robot = BipedalRobot(RobotConfig(self.sim.scale))
 
+    param_min = np.zeros_like(self.robot.config.params, dtype=np.float32)
+    param_max = np.full_like(self.robot.config.params, np.inf, dtype=np.float32)
     os_lim = np.array([np.inf for _ in range(24)])
     as_lim = np.array([1 for _ in range(4)])
+    self.parameter_space = spaces.Box(param_min, param_max)
     self.observation_space = spaces.Box(-os_lim, os_lim)
     self.action_space = spaces.Box(-as_lim, as_lim)
 
